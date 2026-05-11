@@ -1,0 +1,74 @@
+﻿services:
+  db:
+    image: postgres:16-alpine
+    container_name: taarifa_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: taarifa_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: Lema12345
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - taarifa_network
+
+  backend:
+    build:
+      context: ./taarifa_backend
+      dockerfile: Dockerfile
+    container_name: taarifa_backend
+    restart: unless-stopped
+    entrypoint: []
+    command: >
+      sh -c "
+        echo 'Waiting for DB...' &&
+        while ! pg_isready -h db -p 5432 -U postgres; do sleep 1; done &&
+        echo 'Running migrations...' &&
+        python manage.py migrate --noinput &&
+        echo 'Starting server...' &&
+        python manage.py runserver 0.0.0.0:8000
+      "
+    environment:
+      - DEBUG=True
+      - DB_NAME=taarifa_db
+      - DB_USER=postgres
+      - DB_PASSWORD=Lema12345
+      - DB_HOST=db
+      - DB_PORT=5432
+    ports:
+      - "8001:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - taarifa_network
+
+  frontend:
+    build:
+      context: ./taarifa_frontend
+      dockerfile: Dockerfile
+      args:
+        - VITE_GRAPHQL_URL=http://localhost:8001/graphql/
+        - VITE_API_URL=http://localhost:8001/api/
+    container_name: taarifa_frontend
+    restart: unless-stopped
+    ports:
+      - "3000:80"
+    depends_on:
+      - backend
+    networks:
+      - taarifa_network
+
+volumes:
+  postgres_data:
+
+networks:
+  taarifa_network:
+    driver: bridge
