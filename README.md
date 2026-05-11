@@ -1,4 +1,4 @@
-﻿# Taarifa - Tanzania Salary Guide & Affordability Calculator
+﻿# Taarifa - Tanzania Salary Guide & Affordability 
 
 A full-stack application for comparing salaries and calculating cost of living across Tanzanian cities.
 
