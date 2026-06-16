@@ -153,7 +153,7 @@ AUTHENTICATION_BACKENDS = [
 ]
 
 # CORS Settings
-CORS_ALLOW_ALL_ORIGINS = True  # Development only
+CORS_ALLOW_ALL_ORIGINS = False  # Set to True for development, False for production
 CORS_ALLOW_CREDENTIALS = True
 
 # For production, specify allowed origins:
@@ -162,7 +162,10 @@ CORS_ALLOWED_ORIGINS = [
     'http://localhost:5173',
      'http://127.0.0.1:5173',
      'http://localhost:3000',
-      'http://127.0.0.1:3000',
+     'http://127.0.0.1:3000',
+     "https://taarifa.vercel.app",  # Your Vercel default preview URL
+     "https://www.taarifa.xyz",     # Your main live production domain
+     "https://taarifa.xyz",         # Your root domain
      
      ]
 
@@ -206,4 +209,8 @@ CSRF_TRUSTED_ORIGINS = [
     'http://127.0.0.1:3000',
     'http://localhost:5173',
     'http://127.0.0.1:5173',
+    "https://taarifa.vercel.app",  # Your Vercel default preview URL
+    "https://www.taarifa.xyz",     # Your main live production domain
+    "https://taarifa.xyz",         # Your root domain
+     
 ]
