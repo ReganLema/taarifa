@@ -66,7 +66,7 @@ jobs:
           cd taarifa_backend
           python manage.py test
 
-  build-and-push:
+  build-and-deploy:
     needs: test
     runs-on: ubuntu-latest
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
@@ -75,35 +75,30 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Login to Docker Hub
-        uses: docker/login-action@v3
+      # 1. Authenticate with AWS safely using secrets
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
         with:
-          username: ${{ secrets.DOCKER_USERNAME }}
-          password: ${{ secrets.DOCKER_PASSWORD }}
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-1
 
-      - name: Build and push backend image
-        uses: docker/build-push-action@v5
-        with:
-          context: ./taarifa_backend
-          push: true
-          tags: |
-            ${{ secrets.DOCKER_USERNAME }}/taarifa-backend:latest
-            ${{ secrets.DOCKER_USERNAME }}/taarifa-backend:${{ github.sha }}
+      # 2. Securely log in to Amazon ECR Container Registry
+      - name: Log in to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
 
-  deploy:
-    needs: build-and-push
-    runs-on: ubuntu-latest
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    
-    steps:
-      - name: Deploy to server
-        uses: appleboy/ssh-action@v1.0.0
-        with:
-          host: ${{ secrets.SERVER_HOST }}
-          username: ${{ secrets.SERVER_USER }}
-          key: ${{ secrets.SSH_PRIVATE_KEY }}
-          script: |
-            cd /app/taarifa
-            docker-compose pull backend
-            docker-compose up -d backend
-            docker-compose exec backend python manage.py migrate --noinput
+      # 3. Build, tag, and push your Django Docker container image (Targeting taarifa_backend folder)
+      - name: Build, tag, and push image to Amazon ECR
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          ECR_REPOSITORY: taarifa-backend
+          IMAGE_TAG: latest
+        run: |
+          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG ./taarifa_backend
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+
+      # 4. Trigger AWS ECS Fargate to instantly roll out a zero-downtime deployment
+      - name: Deploy to Amazon ECS Fargate
+        run: |
+          aws ecs update-service --cluster taarifa-cluster --service taarifa-api-service --force-new-deployment
