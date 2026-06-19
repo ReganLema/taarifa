@@ -1,0 +1,43 @@
+﻿{
+    "family": "taarifa-api-task",
+    "containerDefinitions": [
+        {
+            "name": "taarifa-api",
+            "image": "202264954636.dkr.ecr.us-east-1.amazonaws.com/taarifa-api:latest",
+            "cpu": 0,
+            "portMappings": [
+                {
+                    "containerPort": 8000,
+                    "hostPort": 8000,
+                    "protocol": "tcp",
+                    "name": "django-8000-tcp",
+                    "appProtocol": "http"
+                }
+            ],
+            "essential": true,
+            "environment": [
+                { "name": "DB_NAME", "value": "taarifa" },
+                { "name": "DB_HOST", "value": "taarifa-db.c89g2eeywfdl.us-east-1.rds.amazonaws.com" },
+                { "name": "DB_PORT", "value": "5432" },
+                { "name": "DB_USER", "value": "postgres" },
+                { "name": "DB_PASSWORD", "value": "Taarifa12345#" }
+            ],
+            "logConfiguration": {
+                "logDriver": "awslogs",
+                "options": {
+                    "awslogs-group": "/ecs/taarifa-api-task",
+                    "awslogs-create-group": "true",
+                    "awslogs-region": "us-east-1",
+                    "awslogs-stream-prefix": "ecs"
+                }
+            }
+        }
+    ],
+    "networkMode": "awsvpc",
+    "requiresCompatibilities": [
+        "FARGATE"
+    ],
+    "cpu": "1024",
+    "memory": "2048",
+    "executionRoleArn": "arn:aws:iam::202264954636:role/ecsTaskExecutionRole"
+}

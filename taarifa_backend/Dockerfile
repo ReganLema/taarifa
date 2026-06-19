@@ -39,22 +39,22 @@ FROM base AS production
 COPY --from=dependencies /usr/local/lib/python3.11/site-packages /usr/local/lib/python3.11/site-packages
 COPY --from=dependencies /usr/local/bin /usr/local/bin
 
-# Create non-root user
+# Create non-root user and system folders
 RUN useradd -m -s /bin/bash taarifa && \
     mkdir -p /app/staticfiles /app/media && \
     chown -R taarifa:taarifa /app
 
-# Copy project files
+# Copy project files securely
 COPY --chown=taarifa:taarifa . .
 
-# Switch to non-root user
+# Fix entrypoint script permissions while still root, keeping it inside /app
+RUN chmod +x /app/entrypoint.sh
+
+# Switch to non-root user for execution safety
 USER taarifa
 
-# Expose port
+# Expose container application port
 EXPOSE 8000
 
-# Run entrypoint script
-COPY --chown=taarifa:taarifa entrypoint.sh /entrypoint.sh
-RUN chmod +x /entrypoint.sh
-
-ENTRYPOINT ["/entrypoint.sh"]
+# Call the script out of the active working directory
+ENTRYPOINT ["/app/entrypoint.sh"]
