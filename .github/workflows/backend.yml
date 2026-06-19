@@ -1,104 +1,62 @@
-name: Backend CI/CD
+name: Deploy Backend to ECS
 
 on:
   push:
-    branches: [main]
-    paths:
-      - 'taarifa_backend/**'
-  pull_request:
-    branches: [main]
+    branches:
+      - main
     paths:
       - 'taarifa_backend/**'
 
 jobs:
-  test:
+  deploy:
     runs-on: ubuntu-latest
-    services:
-      postgres:
-        image: postgres:16-alpine
-        env:
-          POSTGRES_DB: taarifa_test
-          POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: postgres
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
 
     steps:
-      - name: Checkout code
+      - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
-          cache: 'pip'
-
-      - name: Install dependencies
-        run: |
-          cd taarifa_backend
-          pip install -r requirements.txt
-          pip install pytest pytest-django
-
-      - name: Run migrations
-        env:
-          DB_NAME: taarifa_test
-          DB_USER: postgres
-          DB_PASSWORD: postgres
-          DB_HOST: localhost
-          DB_PORT: 5432
-        run: |
-          cd taarifa_backend
-          python manage.py migrate
-
-      - name: Run tests
-        env:
-          DB_NAME: taarifa_test
-          DB_USER: postgres
-          DB_PASSWORD: postgres
-          DB_HOST: localhost
-          DB_PORT: 5432
-        run: |
-          cd taarifa_backend
-          python manage.py test
-
-  build-and-deploy:
-    needs: test
-    runs-on: ubuntu-latest
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      # 1. Authenticate with AWS safely using secrets
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: us-east-1
+          aws-region: ${{ secrets.AWS_REGION }}
 
-      # 2. Securely log in to Amazon ECR Container Registry
-      - name: Log in to Amazon ECR
+      - name: Login to Amazon ECR
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@v2
 
-      # 3. Build, tag, and push your Django Docker container image (Targeting taarifa_backend folder)
-      - name: Build, tag, and push image to Amazon ECR
+      # We can build, tag, and push in a single step to keep it fast and clean
+      - name: Build, Tag, and Push Image to Amazon ECR
         env:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
-          ECR_REPOSITORY: taarifa-backend
-          IMAGE_TAG: latest
+          ECR_REPOSITORY: ${{ secrets.ECR_REPOSITORY }}
+          IMAGE_TAG: ${{ github.sha }}
         run: |
           docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG ./taarifa_backend
           docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
 
-      # 4. Trigger AWS ECS Fargate to instantly roll out a zero-downtime deployment
-      - name: Deploy to Amazon ECS Fargate
+      # Step 1: Download the current active task definition from AWS
+      - name: Download Active Task Definition
         run: |
-          aws ecs update-service --cluster taarifa-cluster --service taarifa-api-service --force-new-deployment
+          aws ecs describe-task-definition \
+            --task-definition ${{ secrets.ECS_TASK_DEFINITION_NAME }} \
+            --query taskDefinition > task-definition.json
+
+      # Step 2: Use the official AWS action to inject the new specific image tag into the JSON file
+      - name: Fill in the new image ID in the Amazon ECS task definition
+        id: render-web-container
+        uses: aws-actions/amazon-ecs-render-task-definition@v1
+        with:
+          task-definition: task-definition.json
+          container-name: taarifa-api  # Must match the container name inside your task definition
+          image: ${{ steps.login-ecr.outputs.registry }}/${{ secrets.ECR_REPOSITORY }}:${{ github.sha }}
+
+      # Step 3: Deploy the updated task definition. ECS handles the rolling replacement gracefully.
+      - name: Deploy Amazon ECS task definition
+        uses: aws-actions/amazon-ecs-deploy-task-definition@v2
+        with:
+          task-definition: ${{ steps.render-web-container.outputs.task-definition }}
+          service: ${{ secrets.ECS_SERVICE }}
+          cluster: ${{ secrets.ECS_CLUSTER }}
+          wait-for-service-stability: true
