@@ -15,6 +15,34 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      # --- 1. Set up Python on the runner ---
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      # --- 2. Install dependencies so manage.py has access to Django ---
+      - name: Install Dependencies
+        run: |
+          cd taarifa_backend
+          pip install --upgrade pip
+          pip install -r requirements.txt
+
+      # --- 3. Run your check with mock environment variables ---
+      - name: Run Django Check or Test
+        env:
+          DJANGO_SECRET_KEY: "ci-test-key-placeholder"
+          ALLOWED_HOSTS: "localhost,127.0.0.1"
+          DB_NAME: "mock_db"
+          DB_USER: "mock_user"
+          DB_PASSWORD: "mock_password"
+          DB_HOST: "localhost"
+          DB_PORT: "5432"
+        run: |
+          cd taarifa_backend
+          python manage.py check
+
+      # --- 4. Cloud deployment continues normally ---
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
@@ -26,7 +54,6 @@ jobs:
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@v2
 
-      # We can build, tag, and push in a single step to keep it fast and clean
       - name: Build, Tag, and Push Image to Amazon ECR
         env:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
@@ -36,23 +63,20 @@ jobs:
           docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG ./taarifa_backend
           docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
 
-      # Step 1: Download the current active task definition from AWS
       - name: Download Active Task Definition
         run: |
           aws ecs describe-task-definition \
             --task-definition ${{ secrets.ECS_TASK_DEFINITION_NAME }} \
             --query taskDefinition > task-definition.json
 
-      # Step 2: Use the official AWS action to inject the new specific image tag into the JSON file
       - name: Fill in the new image ID in the Amazon ECS task definition
         id: render-web-container
         uses: aws-actions/amazon-ecs-render-task-definition@v1
         with:
           task-definition: task-definition.json
-          container-name: taarifa-api  # Must match the container name inside your task definition
+          container-name: taarifa-api
           image: ${{ steps.login-ecr.outputs.registry }}/${{ secrets.ECR_REPOSITORY }}:${{ github.sha }}
 
-      # Step 3: Deploy the updated task definition. ECS handles the rolling replacement gracefully.
       - name: Deploy Amazon ECS task definition
         uses: aws-actions/amazon-ecs-deploy-task-definition@v2
         with:
