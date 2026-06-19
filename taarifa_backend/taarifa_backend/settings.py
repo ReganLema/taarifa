@@ -26,7 +26,12 @@ DEBUG = os.getenv("DEBUG", "False") == "True"
 
 # Dynamically parse comma-separated hosts passed from ECS or Local environment
 ALLOWED_HOSTS = [
-    host.strip() for host in os.environ['ALLOWED_HOSTS'].split(",") if host.strip()
+    host.strip()
+    for host in os.getenv(
+        "ALLOWED_HOSTS",
+        "localhost,127.0.0.1"
+    ).split(",")
+    if host.strip()
 ]
 
 
