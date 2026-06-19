@@ -91,15 +91,14 @@ WSGI_APPLICATION = 'taarifa_backend.wsgi.application'
 # ==============================================================================
 # DATABASE CONFIGURATION (No Hardcoded Fallbacks)
 # ==============================================================================
-
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
-        'NAME': os.environ['DB_NAME'],
-        'USER': os.environ['DB_USER'],
-        'PASSWORD': os.environ['DB_PASSWORD'],
-        'HOST': os.environ['DB_HOST'],
-        'PORT': os.environ.get('DB_PORT', '5432'),
+        'NAME': os.getenv('DB_NAME', 'taarifa_test'),
+        'USER': os.getenv('DB_USER', 'postgres'),
+        'PASSWORD': os.getenv('DB_PASSWORD', 'postgres'),
+        'HOST': os.getenv('DB_HOST', 'localhost'),
+        'PORT': os.getenv('DB_PORT', '5432'),
     }
 }
 
