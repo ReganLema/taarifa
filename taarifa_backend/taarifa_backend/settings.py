@@ -16,7 +16,10 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # ==============================================================================
 
 # Strict loading: Forces application failure if keys are omitted at runtime
-SECRET_KEY = os.environ['DJANGO_SECRET_KEY']
+SECRET_KEY = os.getenv(
+    "DJANGO_SECRET_KEY",
+    "django-local-development-secret"
+)
 
 # Robust boolean casting for debug mode (Defaults to False if not explicitly 'True')
 DEBUG = os.getenv("DEBUG", "False") == "True"
