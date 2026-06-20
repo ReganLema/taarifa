@@ -1,18 +1,13 @@
-
-# This script imports occupation and salary data into the database.
-
-
-import os
-import django
-
-# Setup Django
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'taarifa_backend.settings')
-django.setup()
-
+from django.core.management.base import BaseCommand
 from core.models import Occupation, EducationLevel, ExperienceLevel, Salary
 
-# Your data
-data = [
+class Command(BaseCommand):
+    help = "Imports initial occupation and salary data into the database."
+
+    def handle(self, *args, **options):
+        self.stdout.write("⏳ Importing occupation and salary data...")
+
+        data = [
     # ==================== ACCOUNTING & FINANCE ====================
     ["Accountant", "Diploma", "Entry Level", 600000.00, 900000.00],
     ["Accountant", "Bachelor", "Entry Level", 800000.00, 1200000.00],
@@ -771,18 +766,21 @@ data = [
     ["Chief Operating Officer (COO)", "Master", "Senior Level", 8000000.00, 18000000.00],
     ["General Manager", "Master", "Senior Level", 7000000.00, 15000000.00]
 ]
+        count = 0
+        for row in data:
+            occupation, _ = Occupation.objects.get_or_create(name=row[0])
+            education, _ = EducationLevel.objects.get_or_create(name=row[1])
+            experience, _ = ExperienceLevel.objects.get_or_create(name=row[2])
 
-for row in data:
-    occupation, _ = Occupation.objects.get_or_create(name=row[0])
-    education, _ = EducationLevel.objects.get_or_create(name=row[1])
-    experience, _ = ExperienceLevel.objects.get_or_create(name=row[2])
+            Salary.objects.update_or_create(
+                occupation=occupation,
+                education_level=education,
+                experience_level=experience,
+                defaults={
+                    "min_salary": row[3],
+                    "max_salary": row[4],
+                }
+            )
+            count += 1
 
-    Salary.objects.create(
-        occupation=occupation,
-        education_level=education,
-        experience_level=experience,
-        min_salary=row[3],
-        max_salary=row[4],
-    )
-
-print("✅ Data imported successfully!")
+        self.stdout.write(self.style.SUCCESS(f"✅ Successfully imported {count} salary records!"))

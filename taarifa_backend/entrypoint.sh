@@ -15,6 +15,12 @@ echo "✅ PostgreSQL is ready!"
 echo "📦 Running database migrations..."
 python manage.py migrate --noinput
 
+echo "📥 Seeding core occupation and salary records..."
+python manage.py import_data
+
+echo "💰 Seeding cost of living benchmark metrics..."
+python manage.py import_cost
+
 echo "🎨 Collecting static assets..."
 python manage.py collectstatic --noinput
 
