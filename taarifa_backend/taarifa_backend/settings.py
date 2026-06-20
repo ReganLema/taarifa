@@ -112,6 +112,9 @@ if not DEBUG:
     SECURE_SSL_REDIRECT = True
     SESSION_COOKIE_SECURE = True
     CSRF_COOKIE_SECURE = True
+
+    # Exclude the health check endpoint from HTTPS redirection
+    SECURE_REDIRECT_EXEMPT = [r'^health/$']
     
     # Advanced Browser Guardrails
     SECURE_BROWSER_XSS_FILTER = True
