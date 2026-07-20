@@ -25,7 +25,7 @@ const SalaryResults = ({
   const [sortBy, setSortBy] = useState<SortOption>('occupation');
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
   const [selectedSalary, setSelectedSalary] = useState<SalaryRangeResult | null>(null);
-  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('list');
   const [filterExperience, setFilterExperience] = useState<string>('all');
   const [filterEducation, setFilterEducation] = useState<string>('all');
 
