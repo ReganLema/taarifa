@@ -166,13 +166,6 @@ const SalaryResults = ({
         {/* View Toggle */}
         <div className="flex gap-2">
           <Button
-            onClick={() => setViewMode('grid')}
-            variant={viewMode === 'grid' ? 'primary' : 'ghost'}
-            size="sm"
-          >
-            📱 Grid
-          </Button>
-          <Button
             onClick={() => setViewMode('list')}
             variant={viewMode === 'list' ? 'primary' : 'ghost'}
             size="sm"
